@@ -15,6 +15,7 @@ interface AppState {
   updateRoom: (planId: string, roomId: string, updater: (room: Room) => Room) => void;
   deleteRoom: (planId: string, roomId: string) => void;
   addOpening: (planId: string, opening: Opening) => void;
+  updateOpening: (planId: string, openingId: string, updater: (opening: Opening) => Opening) => void;
   deleteOpening: (planId: string, openingId: string) => void;
   addOutlet: (planId: string, outlet: Outlet) => void;
   deleteOutlet: (planId: string, outletId: string) => void;
@@ -93,6 +94,15 @@ export const useStore = create<AppState>((set, get) => ({
     set((state) => ({
       plans: state.plans.map((p) =>
         p.id === planId ? { ...p, openings: [...p.openings, opening] } : p
+      ),
+    })),
+
+  updateOpening: (planId, openingId, updater) =>
+    set((state) => ({
+      plans: state.plans.map((p) =>
+        p.id === planId
+          ? { ...p, openings: p.openings.map((o) => (o.id === openingId ? updater(o) : o)) }
+          : p
       ),
     })),
 

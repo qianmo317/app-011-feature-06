@@ -21,6 +21,8 @@ export interface Opening {
   offsetMm: number;
   widthMm: number;
   heightMm: number;
+  /** 离地高度 (mm)，旧数据可能没有，缺省按 0 处理 */
+  sillHeightMm?: number;
   type: OpeningType;
 }
 
