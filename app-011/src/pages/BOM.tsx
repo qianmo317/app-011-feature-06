@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useStore } from '../store';
 import { calcMaterials, calcPaintBuckets } from '../utils/materialCalc';
 import { polygonPerimeter } from '../utils/geometry';
-import type { MatSpec } from '../types';
+import { openingGeomValid } from '../utils/openingValidation';
+import type { MatSpec, Opening, Room } from '../types';
 
 export default function BOM() {
   const { id } = useParams<{ id: string }>();
@@ -154,8 +155,8 @@ function PaintCalc({
   openings,
   materials,
 }: {
-  rooms: { id: string; name: string; polygon: { x: number; y: number }[]; heightMm: number }[];
-  openings: { roomId: string; widthMm: number; heightMm: number }[];
+  rooms: Room[];
+  openings: Opening[];
   materials: MatSpec[];
 }) {
   const paintMat = materials.find((m) => m.id === 'paint');
@@ -168,7 +169,9 @@ function PaintCalc({
       {rooms.map((room) => {
         const perim = polygonPerimeter(room.polygon);
         const wallArea = perim * room.heightMm;
-        const roomOpenings = openings.filter((o) => o.roomId === room.id);
+        const roomAll = openings.filter((o) => o.roomId === room.id);
+        const roomOpenings = roomAll.filter((o) => openingGeomValid(o, room));
+        const skippedBad = roomAll.length - roomOpenings.length;
         const openingArea = roomOpenings.reduce((s, o) => s + o.widthMm * o.heightMm, 0);
         const netArea = Math.max(0, wallArea - openingArea);
         const buckets = calcPaintBuckets(netArea / 1000000, paintMat.coverage || 12);
@@ -181,6 +184,9 @@ function PaintCalc({
               周长{perim.toFixed(0)}mm × 层高{room.heightMm}mm = {wallArea.toFixed(0)}mm²
               <br />
               扣门窗{openingArea.toFixed(0)}mm² → 净面积{netArea.toFixed(0)}mm² ({(netArea / 1000000).toFixed(2)}m²)
+              {skippedBad > 0 && (
+                <span style={{ color: '#e74c3c' }}>（{skippedBad} 个越界/重叠洞口未计入扣减）</span>
+              )}
               <br />
               面漆: {buckets}桶 (每桶覆盖{paintMat.coverage}m²)
               {primerMat && <span> | 底漆: {primerBuckets}桶</span>}

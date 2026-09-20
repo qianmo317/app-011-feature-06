@@ -21,6 +21,8 @@ export interface Opening {
   offsetMm: number;
   widthMm: number;
   heightMm: number;
+  /** 离地高度（窗台高），门/垭口应为 0，老数据可能没有该字段，按 0 处理 */
+  sillMm?: number;
   type: OpeningType;
 }
 

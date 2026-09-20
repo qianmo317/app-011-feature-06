@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import type { Pt, Room, Opening } from '../types';
 import { polygonArea, dist, getWallSegments } from '../utils/geometry';
+import { scanOpenings } from '../utils/openingValidation';
 
 interface Props {
   rooms: Room[];
@@ -35,6 +37,13 @@ export default function RoomCanvas({
   }
 
   const padding = 40;
+
+  // 体检一遍：越界 / 互相压着的洞口在图上用警示色画出来
+  const badIds = useMemo(() => {
+    const s = new Set<string>();
+    scanOpenings(rooms, openings).bad.forEach((b) => s.add(b.opening.id));
+    return s;
+  }, [rooms, openings]);
 
   return (
     <g>
@@ -103,6 +112,8 @@ export default function RoomCanvas({
         const endX = startX + (dx / len) * op.widthMm;
         const endY = startY + (dy / len) * op.widthMm;
         const depth = 15;
+        const bad = badIds.has(op.id);
+        const color = bad ? '#8e44ad' : '#e74c3c';
 
         return (
           <g key={op.id}>
@@ -111,17 +122,19 @@ export default function RoomCanvas({
               y1={startY + ny * depth}
               x2={endX + nx * depth}
               y2={endY + ny * depth}
-              stroke="#e74c3c"
-              strokeWidth={2}
+              stroke={color}
+              strokeWidth={bad ? 3 : 2}
+              strokeDasharray={bad ? '6,3' : undefined}
             />
             <text
               x={(startX + endX) / 2 + nx * (depth + 10)}
               y={(startY + endY) / 2 + ny * (depth + 10)}
               fontSize="9"
-              fill="#e74c3c"
+              fill={color}
               textAnchor="middle"
             >
               {op.type === 'door' ? '门' : op.type === 'window' ? '窗' : op.type === 'sliding' ? '推拉门' : '垭口'}
+              {bad ? '⚠' : ''}
             </text>
           </g>
         );

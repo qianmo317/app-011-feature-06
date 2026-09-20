@@ -1,5 +1,6 @@
 import type { Room, Opening, MatSpec, MaterialResult } from '../types';
 import { polygonArea, polygonPerimeter } from './geometry';
+import { openingGeomValid } from './openingValidation';
 
 export const DEFAULT_MATS: MatSpec[] = [
   { id: 'paint', name: '乳胶漆', unit: 'm2', coverage: 12, lossRate: 0.05, price: 35 },
@@ -24,7 +25,10 @@ export function calcMaterials(
     const perim = polygonPerimeter(room.polygon);
     const wallArea = perim * room.heightMm;
 
-    const roomOpenings = openings.filter((o) => o.roomId === room.id);
+    // 越界 / 超顶 / 数值异常的“坏洞口”不参与扣面积，否则墙面该扣多少会算错
+    const roomOpeningsAll = openings.filter((o) => o.roomId === room.id);
+    const roomOpenings = roomOpeningsAll.filter((o) => openingGeomValid(o, room));
+    const skippedBad = roomOpeningsAll.length - roomOpenings.length;
     const openingArea = roomOpenings.reduce((sum, o) => sum + o.widthMm * o.heightMm, 0);
     const doorOpenings = roomOpenings.filter((o) => o.type === 'door' || o.type === 'sliding');
     const doorWidth = doorOpenings.reduce((sum, o) => sum + o.widthMm, 0);
@@ -58,7 +62,8 @@ export function calcMaterials(
     const wallMat = matMap.get(room.wallMat);
     if (wallMat) {
       const qty = netWallArea * (1 + wallMat.lossRate);
-      const detail = `房间"${room.name}"墙面: (${perim.toFixed(0)}mm×${room.heightMm}mm - ${openingArea.toFixed(0)}mm²) × (1+${(wallMat.lossRate * 100).toFixed(0)}%) = ${qty.toFixed(2)}${wallMat.unit}`;
+      const badNote = skippedBad > 0 ? `（另有 ${skippedBad} 个越界/重叠洞口未计入，请先修正）` : '';
+      const detail = `房间"${room.name}"墙面: (${perim.toFixed(0)}mm×${room.heightMm}mm - ${openingArea.toFixed(0)}mm²) × (1+${(wallMat.lossRate * 100).toFixed(0)}%) = ${qty.toFixed(2)}${wallMat.unit}${badNote}`;
       results.push({
         matId: wallMat.id,
         name: wallMat.name,
